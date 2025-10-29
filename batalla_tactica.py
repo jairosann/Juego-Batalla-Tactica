@@ -83,18 +83,25 @@ def iconos_estado(fighter: "Fighter") -> str:
     return " ".join(iconos)
 
 
-def panel_lines(fighter: "Fighter", ancho: int = 38) -> List[str]:
+NOMBRE_COLORES = {
+    "Jugador": Fore.CYAN,
+    "Enemigo": Fore.RED,
+}
+
+
+def panel_lines(fighter: "Fighter", ancho: int = 40) -> List[str]:
     """Genera las líneas de texto del panel del combatiente."""
     hp_ratio = fighter.hp / fighter.max_hp if fighter.max_hp else 0
     color_hp = ratio_color(hp_ratio)
-    barra_hp = barra(fighter.hp, fighter.max_hp, 16, "█", "·", color_hp)
-    barra_en = barra(fighter.en, fighter.max_en, 16, "■", "·", Fore.CYAN)
+    barra_hp = barra(fighter.hp, fighter.max_hp, 18, "█", "·", color_hp)
+    barra_en = barra(fighter.en, fighter.max_en, 18, "■", "·", Fore.CYAN)
     estados = iconos_estado(fighter) or "—"
-    encabezado = f"{Style.BRIGHT}{fighter.nombre}{Style.RESET_ALL}"
+    color_nombre = NOMBRE_COLORES.get(fighter.nombre, Fore.WHITE)
+    encabezado = f"{color_nombre}{Style.BRIGHT}{fighter.nombre}{Style.RESET_ALL}"
     if estados and estados != "—":
-        encabezado = f"{encabezado} {estados}"
+        encabezado = f"{encabezado} {Style.DIM}{estados}{Style.RESET_ALL}"
 
-    cuerpo: List[str] = [f"╔{'═' * (ancho - 2)}╗"]
+    cuerpo: List[str] = [f"╭{'─' * (ancho - 2)}╮"]
     interior_ancho = ancho - 4
 
     def linea_contenido(texto: str) -> str:
@@ -103,10 +110,16 @@ def panel_lines(fighter: "Fighter", ancho: int = 38) -> List[str]:
     cuerpo.extend(
         [
             linea_contenido(encabezado),
-            linea_contenido(f"HP [{barra_hp}] {fighter.hp:>3}/{fighter.max_hp:<3}"),
-            linea_contenido(f"EN [{barra_en}] {fighter.en:>3}/{fighter.max_en:<3}"),
-            linea_contenido(f"Cargas: {fighter.cargas:<3} Estado: {estados}"),
-            f"╚{'═' * (ancho - 2)}╝",
+            linea_contenido(
+                f"HP [{barra_hp}] {color_hp}{fighter.hp:>3}{Style.RESET_ALL}/{fighter.max_hp:<3}"
+            ),
+            linea_contenido(
+                f"EN [{barra_en}] {Fore.CYAN}{fighter.en:>3}{Style.RESET_ALL}/{fighter.max_en:<3}"
+            ),
+            linea_contenido(
+                f"⚡ Recuperaciones: {fighter.cargas:<3} Estado: {Style.DIM}{estados}{Style.RESET_ALL}"
+            ),
+            f"╰{'─' * (ancho - 2)}╯",
         ]
     )
     return cuerpo
@@ -117,14 +130,43 @@ def pintar_panel(fighter: "Fighter") -> List[str]:
     return panel_lines(fighter)
 
 
+def bloque_vs(izquierdo: "Fighter", derecho: "Fighter") -> List[str]:
+    """Pequeño bloque central con información cruzada."""
+    hp_line = (
+        f"{Style.DIM}│ {Fore.CYAN}{izquierdo.hp:>3}{Style.RESET_ALL} ⨯ {Fore.RED}{derecho.hp:>3}{Style.RESET_ALL} │{Style.RESET_ALL}"
+    )
+    en_line = (
+        f"{Style.DIM}│ {Fore.CYAN}{izquierdo.en:>3}{Style.RESET_ALL} ⚡ {Fore.RED}{derecho.en:>3}{Style.RESET_ALL} │{Style.RESET_ALL}"
+    )
+    return [
+        f"{Style.DIM}╭──────╮{Style.RESET_ALL}",
+        hp_line,
+        f"{Style.DIM}│  VS  │{Style.RESET_ALL}",
+        en_line,
+        f"{Style.DIM}╰──────╯{Style.RESET_ALL}",
+    ]
+
+
+def pad_lines(lines: List[str], largo: int) -> List[str]:
+    if len(lines) >= largo:
+        return lines
+    return lines + [""] * (largo - len(lines))
+
+
 def mostrar_paneles(izquierdo: "Fighter", derecho: "Fighter") -> None:
-    """Muestra dos paneles en paralelo."""
+    """Muestra dos paneles en paralelo con un bloque VS."""
     izquierda = panel_lines(izquierdo)
     derecha = panel_lines(derecho)
-    ancho_izq = max(ancho_visual(linea) for linea in izquierda)
-    separador = " " * 4
-    for l, r in zip_longest(izquierda, derecha, fillvalue=""):
-        print(f"{pad_ansi(l, ancho_izq)}{separador}{r}")
+    centro = bloque_vs(izquierdo, derecho)
+    altura = max(len(izquierda), len(derecha), len(centro))
+    izquierda = pad_lines(izquierda, altura)
+    derecha = pad_lines(derecha, altura)
+    centro = pad_lines(centro, altura)
+    ancho_izq = max(ancho_visual(linea) for linea in izquierda) if izquierda else 0
+    ancho_centro = max(ancho_visual(linea) for linea in centro) if centro else 0
+    separador = " " * 3
+    for l, c, r in zip_longest(izquierda, centro, derecha, fillvalue=""):
+        print(f"{pad_ansi(l, ancho_izq)}{separador}{pad_ansi(c, ancho_centro)}{separador}{r}")
 
 
 # ---------------------------------------------------------------------------
@@ -329,19 +371,39 @@ def log_defensa(actor: Fighter) -> str:
     return f"{actor.nombre}: DEFENSA [🛡]."
 
 
+HIGHLIGHT_TERMS = [
+    ("ESPECIAL", Fore.MAGENTA),
+    ("CRÍTICO", Fore.LIGHTRED_EX),
+    ("ESQUIVA", Fore.LIGHTBLUE_EX),
+    ("RECARGA", Fore.GREEN),
+    ("DEFENSA", Fore.YELLOW),
+]
+
+
+def aplicar_resaltado(texto: str) -> str:
+    resaltado = texto
+    for termino, color in HIGHLIGHT_TERMS:
+        resaltado = re.sub(
+            rf"(?<!\w){termino}(?!\w)",
+            lambda m: f"{Style.BRIGHT}{color}{m.group(0)}{Style.RESET_ALL}",
+            resaltado,
+        )
+    return resaltado
+
+
 def resaltar_log(linea: str) -> str:
-    """Añade color según el emisor."""
+    """Añade color según el emisor y resalta palabras clave."""
     if linea.startswith("Jugador:"):
-        return f"{Style.BRIGHT}{Fore.CYAN}Jugador{Style.RESET_ALL}{linea[len('Jugador'):]}"
-    if linea.startswith("Enemigo:"):
-        return f"{Style.BRIGHT}{Fore.RED}Enemigo{Style.RESET_ALL}{linea[len('Enemigo'):]}"
-    if linea.startswith("Ronda "):
+        linea = f"{Style.BRIGHT}{Fore.CYAN}Jugador{Style.RESET_ALL}{linea[len('Jugador') :]}"
+    elif linea.startswith("Enemigo:"):
+        linea = f"{Style.BRIGHT}{Fore.RED}Enemigo{Style.RESET_ALL}{linea[len('Enemigo') :]}"
+    elif linea.startswith("Ronda "):
         return f"{Style.DIM}{linea}{Style.RESET_ALL}"
-    if linea.startswith("Entrada inválida"):
+    elif linea.startswith("Entrada inválida"):
         return f"{Fore.YELLOW}{linea}{Style.RESET_ALL}"
-    if linea.startswith("Salida del juego"):
+    elif linea.startswith("Salida del juego"):
         return f"{Fore.YELLOW}{linea}{Style.RESET_ALL}"
-    return linea
+    return aplicar_resaltado(linea)
 
 
 def ejecutar_ataque(atacante: Fighter, defensor: Fighter, base: int, mult: float, coste: int, etiqueta: str) -> str:
@@ -372,6 +434,22 @@ def resumen_ronda(n: int, jugador: Fighter, enemigo: Fighter) -> str:
     )
 
 
+def mostrar_historial(historial: List[str], limite: int = 5) -> None:
+    if not historial:
+        print(f"  {Style.DIM}• Sin eventos previos.{Style.RESET_ALL}")
+        return
+    for linea in historial[-limite:]:
+        print(f"  {Style.DIM}•{Style.RESET_ALL} {linea}")
+
+
+def mostrar_encabezado(ronda: int) -> None:
+    titulo = f" BATALLA TÁCTICA — RONDA {ronda:02d} "
+    borde = "═" * len(titulo)
+    print(f"{Style.BRIGHT}{Fore.MAGENTA}╔{borde}╗{Style.RESET_ALL}")
+    print(f"{Style.BRIGHT}{Fore.MAGENTA}║{titulo}║{Style.RESET_ALL}")
+    print(f"{Style.BRIGHT}{Fore.MAGENTA}╚{borde}╝{Style.RESET_ALL}")
+
+
 # ---------------------------------------------------------------------------
 # Bucle principal
 # ---------------------------------------------------------------------------
@@ -387,16 +465,15 @@ def bucle_principal() -> None:
 
     while jugador.vivo() and enemigo.vivo():
         clear_screen()
-        print(f"{Style.BRIGHT}{Fore.MAGENTA}=== BATALLA TÁCTICA ==={Style.RESET_ALL}")
-        print(f"{Style.DIM}┄┄┄ Ronda {ronda} ┄┄┄{Style.RESET_ALL}")
+        mostrar_encabezado(ronda)
         mostrar_paneles(jugador, enemigo)
         print()
-        if historial:
-            print(f"{Style.BRIGHT}Registro reciente:{Style.RESET_ALL}")
-            for linea in historial[-4:]:
-                print(f"  {linea}")
-            print()
-        print(f"{Style.DIM}[A]tacar [D]efender [E]special [R]ecargar [Q]uitar{Style.RESET_ALL}")
+        print(f"{Style.BRIGHT}Registro reciente:{Style.RESET_ALL}")
+        mostrar_historial(historial)
+        print()
+        print(
+            f"{Style.DIM}[A]tacar [D]efender [E]special [R]ecargar [Q]uitar{Style.RESET_ALL}"
+        )
 
         accion = solicitar_accion()
         if accion == "Q":
@@ -478,7 +555,9 @@ def bucle_principal() -> None:
 
 def solicitar_accion() -> str:
     while True:
-        respuesta = input("Acción: ").strip().upper()
+        respuesta = input(
+            f"{Style.BRIGHT}{Fore.CYAN}Acción{Style.RESET_ALL}: "
+        ).strip().upper()
         if respuesta in {"A", "D", "E", "R", "Q"}:
             return respuesta
         print("Entrada inválida.")
