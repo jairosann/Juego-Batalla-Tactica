@@ -341,26 +341,32 @@ def dano_maximo(atacante: Fighter, defensor: Fighter, base: int, mult: float) ->
 # ---------------------------------------------------------------------------
 
 
-def log_ataque(actor: Fighter, accion: str, coste: int, dano: int, etiquetas: Iterable[str], trazas: Dict[str, float], rival: Fighter) -> str:
+def log_ataque(
+    actor: Fighter,
+    accion: str,
+    coste: int,
+    dano: int,
+    etiquetas: Iterable[str],
+    trazas: Dict[str, float],
+    rival: Fighter,
+) -> str:
     prefijo = f"{actor.nombre}: {accion}"
     if coste:
-        prefijo += f" (coste {coste})."
-    else:
-        prefijo += "."
+        prefijo += f" (coste {coste})"
 
     if "ESQUIVA" in etiquetas:
-        return f"{prefijo} ESQUIVA del {rival.nombre.lower()}. Daño 0."
+        return f"{prefijo}. ESQUIVA del {rival.nombre.lower()}. Daño 0."
 
-    base_total = int(trazas.get("base_total", trazas.get("base", 0) + trazas.get("atk", 0) - trazas.get("def", 0)))
-    var = trazas.get("var", 1.0)
-    crit = trazas.get("crit", 0.0) >= 1.0
+    partes: List[str] = [f"{prefijo} → daño {dano}."]
+    if "CRÍTICO" in etiquetas:
+        partes.append("CRÍTICO.")
+
     def_mult = trazas.get("def_mult", 1.0)
-    prefijo_formulas = (
-        f"{prefijo} Base {int(trazas.get('base', 0))} + ATK {int(trazas.get('atk', 0))} "
-        f"− DEF {int(trazas.get('def', 0))} = {base_total}; var {var:.2f}; "
-        f"CRIT: {'sí' if crit else 'no'}; DEF rival: {def_mult:.1f} → daño {dano}."
-    )
-    return prefijo_formulas
+    if def_mult < 1.0:
+        partes.append("Defensa rival activa.")
+
+    partes.append(f"HP rival {rival.hp}/{rival.max_hp}.")
+    return " ".join(partes)
 
 
 def log_recarga(actor: Fighter, ganado: int, antes: int, despues: int) -> str:
@@ -434,7 +440,7 @@ def resumen_ronda(n: int, jugador: Fighter, enemigo: Fighter) -> str:
     )
 
 
-def mostrar_historial(historial: List[str], limite: int = 5) -> None:
+def mostrar_historial(historial: List[str], limite: int = 3) -> None:
     if not historial:
         print(f"  {Style.DIM}• Sin eventos previos.{Style.RESET_ALL}")
         return
