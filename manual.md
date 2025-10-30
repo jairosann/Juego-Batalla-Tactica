@@ -29,6 +29,7 @@ Si introduces otra tecla, el juego avisará y pedirá una entrada válida.
 - **EN (energía)**: necesaria para usar habilidades especiales. Inicias con la mitad de tu máximo.
 - **Cargas**: cada recarga consume una. Empiezas con dos.
 - **DEF**: estado que aparece al defenderse y reduce el siguiente golpe recibido dentro de la ronda en curso.
+- **Valores iniciales**: tanto el jugador como el enemigo empiezan con 100 HP; el jugador tiene 18 EN máximos y el enemigo 16 EN máximos.
 
 ## Flujo del turno
 1. El jugador actúa primero eligiendo una acción.

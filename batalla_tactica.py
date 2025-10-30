@@ -89,62 +89,31 @@ NOMBRE_COLORES = {
 }
 
 
-def panel_lines(fighter: "Fighter", ancho: int = 40) -> List[str]:
-    """Genera las líneas de texto del panel del combatiente."""
+def panel_lines(fighter: "Fighter", ancho: int = 38) -> List[str]:
+    """Genera líneas simples para mostrar la información esencial del combatiente."""
     hp_ratio = fighter.hp / fighter.max_hp if fighter.max_hp else 0
     color_hp = ratio_color(hp_ratio)
-    barra_hp = barra(fighter.hp, fighter.max_hp, 18, "█", "·", color_hp)
-    barra_en = barra(fighter.en, fighter.max_en, 18, "■", "·", Fore.CYAN)
+    barra_hp = barra(fighter.hp, fighter.max_hp, 20, "█", "·", color_hp)
+    barra_en = barra(fighter.en, fighter.max_en, 20, "■", "·", Fore.CYAN)
     estados = iconos_estado(fighter) or "—"
     color_nombre = NOMBRE_COLORES.get(fighter.nombre, Fore.WHITE)
-    encabezado = f"{color_nombre}{Style.BRIGHT}{fighter.nombre}{Style.RESET_ALL}"
-    if estados and estados != "—":
-        encabezado = f"{encabezado} {Style.DIM}{estados}{Style.RESET_ALL}"
+    nombre = f"{color_nombre}{Style.BRIGHT}{fighter.nombre}{Style.RESET_ALL}"
+    if estados != "—":
+        nombre = f"{nombre} {Style.DIM}{estados}{Style.RESET_ALL}"
 
-    cuerpo: List[str] = [f"╭{'─' * (ancho - 2)}╮"]
-    interior_ancho = ancho - 4
+    lineas = [
+        nombre,
+        f"HP {Style.DIM}[{Style.RESET_ALL}{barra_hp}{Style.DIM}]{Style.RESET_ALL} {color_hp}{fighter.hp:>3}{Style.RESET_ALL}/{fighter.max_hp:<3}",
+        f"EN {Style.DIM}[{Style.RESET_ALL}{barra_en}{Style.DIM}]{Style.RESET_ALL} {Fore.CYAN}{fighter.en:>3}{Style.RESET_ALL}/{fighter.max_en:<3}",
+        f"⚡ Cargas: {fighter.cargas:<2} Estado: {Style.DIM}{estados}{Style.RESET_ALL}",
+    ]
 
-    def linea_contenido(texto: str) -> str:
-        return f"║ {pad_ansi(texto, interior_ancho)} ║"
-
-    cuerpo.extend(
-        [
-            linea_contenido(encabezado),
-            linea_contenido(
-                f"HP [{barra_hp}] {color_hp}{fighter.hp:>3}{Style.RESET_ALL}/{fighter.max_hp:<3}"
-            ),
-            linea_contenido(
-                f"EN [{barra_en}] {Fore.CYAN}{fighter.en:>3}{Style.RESET_ALL}/{fighter.max_en:<3}"
-            ),
-            linea_contenido(
-                f"⚡ Recuperaciones: {fighter.cargas:<3} Estado: {Style.DIM}{estados}{Style.RESET_ALL}"
-            ),
-            f"╰{'─' * (ancho - 2)}╯",
-        ]
-    )
-    return cuerpo
+    return [pad_ansi(linea, ancho) for linea in lineas]
 
 
 def pintar_panel(fighter: "Fighter") -> List[str]:
     """Compatibilidad: devuelve las líneas del panel."""
     return panel_lines(fighter)
-
-
-def bloque_vs(izquierdo: "Fighter", derecho: "Fighter") -> List[str]:
-    """Pequeño bloque central con información cruzada."""
-    hp_line = (
-        f"{Style.DIM}│ {Fore.CYAN}{izquierdo.hp:>3}{Style.RESET_ALL} ⨯ {Fore.RED}{derecho.hp:>3}{Style.RESET_ALL} │{Style.RESET_ALL}"
-    )
-    en_line = (
-        f"{Style.DIM}│ {Fore.CYAN}{izquierdo.en:>3}{Style.RESET_ALL} ⚡ {Fore.RED}{derecho.en:>3}{Style.RESET_ALL} │{Style.RESET_ALL}"
-    )
-    return [
-        f"{Style.DIM}╭──────╮{Style.RESET_ALL}",
-        hp_line,
-        f"{Style.DIM}│  VS  │{Style.RESET_ALL}",
-        en_line,
-        f"{Style.DIM}╰──────╯{Style.RESET_ALL}",
-    ]
 
 
 def pad_lines(lines: List[str], largo: int) -> List[str]:
@@ -154,19 +123,16 @@ def pad_lines(lines: List[str], largo: int) -> List[str]:
 
 
 def mostrar_paneles(izquierdo: "Fighter", derecho: "Fighter") -> None:
-    """Muestra dos paneles en paralelo con un bloque VS."""
+    """Muestra los paneles de jugador y enemigo en paralelo."""
     izquierda = panel_lines(izquierdo)
     derecha = panel_lines(derecho)
-    centro = bloque_vs(izquierdo, derecho)
-    altura = max(len(izquierda), len(derecha), len(centro))
+    altura = max(len(izquierda), len(derecha))
     izquierda = pad_lines(izquierda, altura)
     derecha = pad_lines(derecha, altura)
-    centro = pad_lines(centro, altura)
     ancho_izq = max(ancho_visual(linea) for linea in izquierda) if izquierda else 0
-    ancho_centro = max(ancho_visual(linea) for linea in centro) if centro else 0
-    separador = " " * 3
-    for l, c, r in zip_longest(izquierda, centro, derecha, fillvalue=""):
-        print(f"{pad_ansi(l, ancho_izq)}{separador}{pad_ansi(c, ancho_centro)}{separador}{r}")
+    separador = " " * 5
+    for l, r in zip_longest(izquierda, derecha, fillvalue=""):
+        print(f"{pad_ansi(l or '', ancho_izq)}{separador}{r}")
 
 
 # ---------------------------------------------------------------------------
@@ -462,7 +428,7 @@ def mostrar_encabezado(ronda: int) -> None:
 
 
 def bucle_principal() -> None:
-    jugador = Fighter("Jugador", 90, 18, 9, 4, 0.15, 0.08)
+    jugador = Fighter("Jugador", 100, 18, 9, 4, 0.15, 0.08)
     enemigo = Fighter("Enemigo", 100, 16, 8, 5, 0.10, 0.06)
 
     ronda = 1

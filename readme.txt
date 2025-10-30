@@ -21,7 +21,7 @@ Inicio rápido
 
 Objetivo
 --------
-Reduce los puntos de vida (HP) del enemigo a cero antes de que él agote los tuyos. Ambos combatientes comienzan con dos cargas de recarga y valores iniciales equilibrados: el jugador dispone de 90 HP y 18 EN máximos, mientras que el enemigo cuenta con 100 HP y 16 EN máximos.
+Reduce los puntos de vida (HP) del enemigo a cero antes de que él agote los tuyos. Ambos combatientes comienzan con dos cargas de recarga y valores iniciales equilibrados: tanto el jugador como el enemigo tienen 100 HP máximos; el jugador dispone de 18 EN y el enemigo de 16 EN máximos.
 
 Controles del jugador
 ---------------------
@@ -51,7 +51,7 @@ Gestión de recursos
 -------------------
 - **Energía (EN):** se gasta al usar el especial. Administrarla es clave para encadenar ataques potentes.
 - **Cargas:** cada recarga consume una carga. Sin cargas no podrás recuperar energía y el comando mostrará un aviso.
-- **Registro reciente:** el cuadro de historial mantiene las cuatro últimas entradas para seguir la secuencia del combate.
+- **Registro reciente:** el cuadro de historial mantiene las tres últimas entradas para seguir la secuencia del combate.
 
 Inteligencia artificial
 -----------------------
