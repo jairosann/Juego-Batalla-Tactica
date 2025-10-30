@@ -4,8 +4,15 @@ Ejecución: python batalla_tactica.py"""
 from __future__ import annotations
 
 from dataclasses import dataclass, field
+<<<<<<< HEAD
 from typing import Dict, Iterable, List, Tuple
 from random import random, uniform
+=======
+from itertools import zip_longest
+from typing import Dict, Iterable, List, Tuple
+from random import random, uniform
+import re
+>>>>>>> origin/codex/create-turn-based-combat-game-in-python
 import sys
 import time
 
@@ -58,6 +65,25 @@ def barra(actual: int, maximo: int, longitud: int, llenos: str, vacios: str, col
     return f"{color}{contenido}{Style.RESET_ALL}"
 
 
+<<<<<<< HEAD
+=======
+ANSI_PATTERN = re.compile(r"\x1b\[[0-9;]*m")
+
+
+def ancho_visual(texto: str) -> int:
+    """Longitud sin secuencias ANSI."""
+    return len(ANSI_PATTERN.sub("", texto))
+
+
+def pad_ansi(texto: str, ancho: int) -> str:
+    """Rellena respetando códigos ANSI."""
+    longitud = ancho_visual(texto)
+    if longitud >= ancho:
+        return texto
+    return texto + " " * (ancho - longitud)
+
+
+>>>>>>> origin/codex/create-turn-based-combat-game-in-python
 def iconos_estado(fighter: "Fighter") -> str:
     iconos: List[str] = []
     if "DEF" in fighter.estado:
@@ -65,6 +91,7 @@ def iconos_estado(fighter: "Fighter") -> str:
     return " ".join(iconos)
 
 
+<<<<<<< HEAD
 def pintar_panel(fighter: "Fighter") -> None:
     """Dibuja el panel de estado del combatiente."""
     nombre = fighter.nombre
@@ -80,6 +107,58 @@ def pintar_panel(fighter: "Fighter") -> None:
     print(f" HP [{barra_hp}] {fighter.hp}/{fighter.max_hp}")
     print(f" EN [{barra_en}] {fighter.en}/{fighter.max_en}")
     print(f" Cargas: {fighter.cargas}")
+=======
+NOMBRE_COLORES = {
+    "Jugador": Fore.CYAN,
+    "Enemigo": Fore.RED,
+}
+
+
+def panel_lines(fighter: "Fighter", ancho: int = 38) -> List[str]:
+    """Genera líneas simples para mostrar la información esencial del combatiente."""
+    hp_ratio = fighter.hp / fighter.max_hp if fighter.max_hp else 0
+    color_hp = ratio_color(hp_ratio)
+    barra_hp = barra(fighter.hp, fighter.max_hp, 20, "█", "·", color_hp)
+    barra_en = barra(fighter.en, fighter.max_en, 20, "■", "·", Fore.CYAN)
+    estados = iconos_estado(fighter) or "—"
+    color_nombre = NOMBRE_COLORES.get(fighter.nombre, Fore.WHITE)
+    nombre = f"{color_nombre}{Style.BRIGHT}{fighter.nombre}{Style.RESET_ALL}"
+    if estados != "—":
+        nombre = f"{nombre} {Style.DIM}{estados}{Style.RESET_ALL}"
+
+    lineas = [
+        nombre,
+        f"HP {Style.DIM}[{Style.RESET_ALL}{barra_hp}{Style.DIM}]{Style.RESET_ALL} {color_hp}{fighter.hp:>3}{Style.RESET_ALL}/{fighter.max_hp:<3}",
+        f"EN {Style.DIM}[{Style.RESET_ALL}{barra_en}{Style.DIM}]{Style.RESET_ALL} {Fore.CYAN}{fighter.en:>3}{Style.RESET_ALL}/{fighter.max_en:<3}",
+        f"⚡ Cargas: {fighter.cargas:<2} Estado: {Style.DIM}{estados}{Style.RESET_ALL}",
+    ]
+
+    return [pad_ansi(linea, ancho) for linea in lineas]
+
+
+def pintar_panel(fighter: "Fighter") -> List[str]:
+    """Compatibilidad: devuelve las líneas del panel."""
+    return panel_lines(fighter)
+
+
+def pad_lines(lines: List[str], largo: int) -> List[str]:
+    if len(lines) >= largo:
+        return lines
+    return lines + [""] * (largo - len(lines))
+
+
+def mostrar_paneles(izquierdo: "Fighter", derecho: "Fighter") -> None:
+    """Muestra los paneles de jugador y enemigo en paralelo."""
+    izquierda = panel_lines(izquierdo)
+    derecha = panel_lines(derecho)
+    altura = max(len(izquierda), len(derecha))
+    izquierda = pad_lines(izquierda, altura)
+    derecha = pad_lines(derecha, altura)
+    ancho_izq = max(ancho_visual(linea) for linea in izquierda) if izquierda else 0
+    separador = " " * 5
+    for l, r in zip_longest(izquierda, derecha, fillvalue=""):
+        print(f"{pad_ansi(l or '', ancho_izq)}{separador}{r}")
+>>>>>>> origin/codex/create-turn-based-combat-game-in-python
 
 
 # ---------------------------------------------------------------------------
@@ -254,6 +333,7 @@ def dano_maximo(atacante: Fighter, defensor: Fighter, base: int, mult: float) ->
 # ---------------------------------------------------------------------------
 
 
+<<<<<<< HEAD
 def log_ataque(actor: Fighter, accion: str, coste: int, dano: int, etiquetas: Iterable[str], trazas: Dict[str, float], rival: Fighter) -> str:
     prefijo = f"{actor.nombre}: {accion}"
     if coste:
@@ -274,6 +354,34 @@ def log_ataque(actor: Fighter, accion: str, coste: int, dano: int, etiquetas: It
         f"CRIT: {'sí' if crit else 'no'}; DEF rival: {def_mult:.1f} → daño {dano}."
     )
     return prefijo_formulas
+=======
+def log_ataque(
+    actor: Fighter,
+    accion: str,
+    coste: int,
+    dano: int,
+    etiquetas: Iterable[str],
+    trazas: Dict[str, float],
+    rival: Fighter,
+) -> str:
+    prefijo = f"{actor.nombre}: {accion}"
+    if coste:
+        prefijo += f" (coste {coste})"
+
+    if "ESQUIVA" in etiquetas:
+        return f"{prefijo}. ESQUIVA del {rival.nombre.lower()}. Daño 0."
+
+    partes: List[str] = [f"{prefijo} → daño {dano}."]
+    if "CRÍTICO" in etiquetas:
+        partes.append("CRÍTICO.")
+
+    def_mult = trazas.get("def_mult", 1.0)
+    if def_mult < 1.0:
+        partes.append("Defensa rival activa.")
+
+    partes.append(f"HP rival {rival.hp}/{rival.max_hp}.")
+    return " ".join(partes)
+>>>>>>> origin/codex/create-turn-based-combat-game-in-python
 
 
 def log_recarga(actor: Fighter, ganado: int, antes: int, despues: int) -> str:
@@ -284,6 +392,44 @@ def log_defensa(actor: Fighter) -> str:
     return f"{actor.nombre}: DEFENSA [🛡]."
 
 
+<<<<<<< HEAD
+=======
+HIGHLIGHT_TERMS = [
+    ("ESPECIAL", Fore.MAGENTA),
+    ("CRÍTICO", Fore.LIGHTRED_EX),
+    ("ESQUIVA", Fore.LIGHTBLUE_EX),
+    ("RECARGA", Fore.GREEN),
+    ("DEFENSA", Fore.YELLOW),
+]
+
+
+def aplicar_resaltado(texto: str) -> str:
+    resaltado = texto
+    for termino, color in HIGHLIGHT_TERMS:
+        resaltado = re.sub(
+            rf"(?<!\w){termino}(?!\w)",
+            lambda m: f"{Style.BRIGHT}{color}{m.group(0)}{Style.RESET_ALL}",
+            resaltado,
+        )
+    return resaltado
+
+
+def resaltar_log(linea: str) -> str:
+    """Añade color según el emisor y resalta palabras clave."""
+    if linea.startswith("Jugador:"):
+        linea = f"{Style.BRIGHT}{Fore.CYAN}Jugador{Style.RESET_ALL}{linea[len('Jugador') :]}"
+    elif linea.startswith("Enemigo:"):
+        linea = f"{Style.BRIGHT}{Fore.RED}Enemigo{Style.RESET_ALL}{linea[len('Enemigo') :]}"
+    elif linea.startswith("Ronda "):
+        return f"{Style.DIM}{linea}{Style.RESET_ALL}"
+    elif linea.startswith("Entrada inválida"):
+        return f"{Fore.YELLOW}{linea}{Style.RESET_ALL}"
+    elif linea.startswith("Salida del juego"):
+        return f"{Fore.YELLOW}{linea}{Style.RESET_ALL}"
+    return aplicar_resaltado(linea)
+
+
+>>>>>>> origin/codex/create-turn-based-combat-game-in-python
 def ejecutar_ataque(atacante: Fighter, defensor: Fighter, base: int, mult: float, coste: int, etiqueta: str) -> str:
     if coste and not atacante.gastar(coste):
         return f"{atacante.nombre}: Energía insuficiente."
@@ -312,17 +458,41 @@ def resumen_ronda(n: int, jugador: Fighter, enemigo: Fighter) -> str:
     )
 
 
+<<<<<<< HEAD
+=======
+def mostrar_historial(historial: List[str], limite: int = 3) -> None:
+    if not historial:
+        print(f"  {Style.DIM}• Sin eventos previos.{Style.RESET_ALL}")
+        return
+    for linea in historial[-limite:]:
+        print(f"  {Style.DIM}•{Style.RESET_ALL} {linea}")
+
+
+def mostrar_encabezado(ronda: int) -> None:
+    titulo = f" BATALLA TÁCTICA — RONDA {ronda:02d} "
+    borde = "═" * len(titulo)
+    print(f"{Style.BRIGHT}{Fore.MAGENTA}╔{borde}╗{Style.RESET_ALL}")
+    print(f"{Style.BRIGHT}{Fore.MAGENTA}║{titulo}║{Style.RESET_ALL}")
+    print(f"{Style.BRIGHT}{Fore.MAGENTA}╚{borde}╝{Style.RESET_ALL}")
+
+
+>>>>>>> origin/codex/create-turn-based-combat-game-in-python
 # ---------------------------------------------------------------------------
 # Bucle principal
 # ---------------------------------------------------------------------------
 
 
 def bucle_principal() -> None:
+<<<<<<< HEAD
     jugador = Fighter("Jugador", 90, 18, 9, 4, 0.15, 0.08)
+=======
+    jugador = Fighter("Jugador", 100, 18, 9, 4, 0.15, 0.08)
+>>>>>>> origin/codex/create-turn-based-combat-game-in-python
     enemigo = Fighter("Enemigo", 100, 16, 8, 5, 0.10, 0.06)
 
     ronda = 1
     jugador_recargo = False
+<<<<<<< HEAD
 
     while jugador.vivo() and enemigo.vivo():
         clear_screen()
@@ -335,12 +505,33 @@ def bucle_principal() -> None:
         accion = solicitar_accion()
         if accion == "Q":
             print("Salida del juego.")
+=======
+    historial: List[str] = []
+
+    while jugador.vivo() and enemigo.vivo():
+        clear_screen()
+        mostrar_encabezado(ronda)
+        mostrar_paneles(jugador, enemigo)
+        print()
+        print(f"{Style.BRIGHT}Registro reciente:{Style.RESET_ALL}")
+        mostrar_historial(historial)
+        print()
+        print(
+            f"{Style.DIM}[A]tacar [D]efender [E]special [R]ecargar [Q]uitar{Style.RESET_ALL}"
+        )
+
+        accion = solicitar_accion()
+        if accion == "Q":
+            mensaje = resaltar_log("Salida del juego.")
+            print(mensaje)
+>>>>>>> origin/codex/create-turn-based-combat-game-in-python
             return
 
         jugador_recargo = False
 
         if accion == "A":
             log = ejecutar_ataque(jugador, enemigo, 8, 1.0, 0, "ATAQUE")
+<<<<<<< HEAD
             slow_print(log)
         elif accion == "E":
             log = ejecutar_ataque(jugador, enemigo, 12, 1.25, 8, "ESPECIAL")
@@ -357,6 +548,38 @@ def bucle_principal() -> None:
 
         if not enemigo.vivo():
             slow_print(resumen_ronda(ronda, jugador, enemigo))
+=======
+            mostrado = resaltar_log(log)
+            slow_print(mostrado)
+            historial.append(mostrado)
+        elif accion == "E":
+            log = ejecutar_ataque(jugador, enemigo, 12, 1.25, 8, "ESPECIAL")
+            mostrado = resaltar_log(log)
+            slow_print(mostrado)
+            historial.append(mostrado)
+        elif accion == "R":
+            log, exito = ejecutar_recarga(jugador)
+            mostrado = resaltar_log(log)
+            slow_print(mostrado)
+            jugador_recargo = exito
+            historial.append(mostrado)
+        elif accion == "D":
+            log = ejecutar_defensa(jugador)
+            mostrado = resaltar_log(log)
+            slow_print(mostrado)
+            historial.append(mostrado)
+        else:
+            mensaje = "Entrada inválida."
+            mostrado = resaltar_log(mensaje)
+            slow_print(mostrado)
+            historial.append(mostrado)
+
+        if not enemigo.vivo():
+            resumen = resumen_ronda(ronda, jugador, enemigo)
+            mostrado_resumen = resaltar_log(resumen)
+            slow_print(mostrado_resumen)
+            historial.append(mostrado_resumen)
+>>>>>>> origin/codex/create-turn-based-combat-game-in-python
             break
 
         defensa_cleanup(enemigo)
@@ -374,25 +597,51 @@ def bucle_principal() -> None:
         else:
             log_enemigo = ejecutar_defensa(enemigo)
 
+<<<<<<< HEAD
         slow_print(log_enemigo)
         defensa_cleanup(jugador)
 
         slow_print(resumen_ronda(ronda, jugador, enemigo))
+=======
+        mostrado_enemigo = resaltar_log(log_enemigo)
+        slow_print(mostrado_enemigo)
+        historial.append(mostrado_enemigo)
+        defensa_cleanup(jugador)
+
+        resumen_turno = resumen_ronda(ronda, jugador, enemigo)
+        mostrado_resumen = resaltar_log(resumen_turno)
+        slow_print(mostrado_resumen)
+        historial.append(mostrado_resumen)
+>>>>>>> origin/codex/create-turn-based-combat-game-in-python
         ronda += 1
         if jugador.vivo() and enemigo.vivo():
             input("Continuar... ")
 
     if jugador.vivo() and not enemigo.vivo():
+<<<<<<< HEAD
         print("Victoria.")
     elif enemigo.vivo() and not jugador.vivo():
         print("Derrota.")
     else:
         print("Empate.")
+=======
+        print(f"{Style.BRIGHT}{Fore.GREEN}Victoria.{Style.RESET_ALL}")
+    elif enemigo.vivo() and not jugador.vivo():
+        print(f"{Style.BRIGHT}{Fore.RED}Derrota.{Style.RESET_ALL}")
+    else:
+        print(f"{Style.BRIGHT}{Fore.YELLOW}Empate.{Style.RESET_ALL}")
+>>>>>>> origin/codex/create-turn-based-combat-game-in-python
 
 
 def solicitar_accion() -> str:
     while True:
+<<<<<<< HEAD
         respuesta = input("Acción: ").strip().upper()
+=======
+        respuesta = input(
+            f"{Style.BRIGHT}{Fore.CYAN}Acción{Style.RESET_ALL}: "
+        ).strip().upper()
+>>>>>>> origin/codex/create-turn-based-combat-game-in-python
         if respuesta in {"A", "D", "E", "R", "Q"}:
             return respuesta
         print("Entrada inválida.")
