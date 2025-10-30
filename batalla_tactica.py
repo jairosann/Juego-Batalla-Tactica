@@ -1,15 +1,20 @@
 """Juego de batalla táctica por turnos para terminal.
-Ejecución: python batalla_tactica.py"""
+Ejecución: ``python batalla_tactica.py``.
+
+Este archivo contiene la versión "grande" del proyecto, y ahora cuenta con
+comentarios pensados para señalar qué parámetros son seguros de modificar sin
+romper la lógica interna del combate.
+"""
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
-from itertools import zip_longest
-from typing import Dict, Iterable, List, Tuple
-from random import random, uniform
 import re
 import sys
 import time
+from dataclasses import dataclass, field
+from itertools import zip_longest
+from random import random, uniform
+from typing import Dict, Iterable, List, Tuple
 
 from colorama import Fore, Style, init
 
@@ -83,6 +88,7 @@ def iconos_estado(fighter: "Fighter") -> str:
     return " ".join(iconos)
 
 
+# Ajusta estos colores si cambias los nombres de los combatientes principales.
 NOMBRE_COLORES = {
     "Jugador": Fore.CYAN,
     "Enemigo": Fore.RED,
@@ -111,9 +117,15 @@ def panel_lines(fighter: "Fighter", ancho: int = 38) -> List[str]:
     return [pad_ansi(linea, ancho) for linea in lineas]
 
 
-def pintar_panel(fighter: "Fighter") -> List[str]:
-    """Compatibilidad: devuelve las líneas del panel."""
-    return panel_lines(fighter)
+def obtener_panel(fighter: "Fighter", ancho: int = 38) -> List[str]:
+    """Devuelve las líneas del panel para reutilizar en interfaces personalizadas."""
+    return panel_lines(fighter, ancho)
+
+
+def pintar_panel(fighter: "Fighter", ancho: int = 38) -> None:
+    """Mantiene la versión impresa del panel que existía antes de la refactorización."""
+    for linea in panel_lines(fighter, ancho):
+        print(linea)
 
 
 def pad_lines(lines: List[str], largo: int) -> List[str]:
@@ -155,6 +167,8 @@ class Fighter:
     cargas: int = field(init=False)
 
     def __post_init__(self) -> None:
+        # Configuración inicial al crear un combatiente.
+        # ➜ Ajusta estos valores si quieres que empiece con más/menos recursos.
         self.hp = self.max_hp
         self.en = self.max_en // 2
         self.cargas = 2
@@ -206,6 +220,8 @@ def calc_daño(atacante: Fighter, defensor: Fighter, base: int, multiplicador: f
         return 0, etiquetas, trazas
 
     critico = random() < atacante.crit
+    # Puedes tocar estos multiplicadores para personalizar el daño crítico
+    # o la variación aleatoria, manteniendo los rangos razonables.
     crit_mult = 1.5 if critico else 1.0
     variacion = uniform(0.9, 1.1)
 
@@ -262,6 +278,9 @@ def esperanza_dano(atacante: Fighter, defensor: Fighter, base: int, mult: float)
 
 
 def decision_ia(enemy: Fighter, player: Fighter, jugador_recargo: bool) -> str:
+    # Parámetros que determinan el comportamiento de la IA.
+    # ➜ Puedes ajustar los umbrales (energía necesaria, porcentajes de vida)
+    #    manteniendo la estructura de decisiones en cascada.
     puede_especial = enemy.en >= 8
     puede_ataque = True
     puede_recarga = enemy.cargas > 0 and enemy.en < 8
@@ -335,6 +354,39 @@ def log_ataque(
     return " ".join(partes)
 
 
+def log_ataque_detallado(
+    actor: Fighter,
+    accion: str,
+    coste: int,
+    dano: int,
+    etiquetas: Iterable[str],
+    trazas: Dict[str, float],
+    rival: Fighter,
+) -> str:
+    """Replica el formato anterior con el desglose matemático del daño."""
+    prefijo = f"{actor.nombre}: {accion}"
+    prefijo += f" (coste {coste})." if coste else "."
+
+    if "ESQUIVA" in etiquetas:
+        return f"{prefijo} ESQUIVA del {rival.nombre.lower()}. Daño 0."
+
+    base_total = int(
+        trazas.get(
+            "base_total",
+            trazas.get("base", 0) + trazas.get("atk", 0) - trazas.get("def", 0),
+        )
+    )
+    var = trazas.get("var", 1.0)
+    crit = trazas.get("crit", 0.0) >= 1.0
+    def_mult = trazas.get("def_mult", 1.0)
+
+    return (
+        f"{prefijo} Base {int(trazas.get('base', 0))} + ATK {int(trazas.get('atk', 0))} "
+        f"− DEF {int(trazas.get('def', 0))} = {base_total}; var {var:.2f}; "
+        f"CRIT: {'sí' if crit else 'no'}; DEF rival: {def_mult:.1f} → daño {dano}."
+    )
+
+
 def log_recarga(actor: Fighter, ganado: int, antes: int, despues: int) -> str:
     return f"{actor.nombre}: RECARGA +{ganado} EN ({antes}→{despues}/{actor.max_en})."
 
@@ -344,6 +396,7 @@ def log_defensa(actor: Fighter) -> str:
 
 
 HIGHLIGHT_TERMS = [
+    # Añade o cambia palabras clave y colores del registro aquí.
     ("ESPECIAL", Fore.MAGENTA),
     ("CRÍTICO", Fore.LIGHTRED_EX),
     ("ESQUIVA", Fore.LIGHTBLUE_EX),
@@ -377,12 +430,12 @@ def resaltar_log(linea: str) -> str:
         return f"{Fore.YELLOW}{linea}{Style.RESET_ALL}"
     return aplicar_resaltado(linea)
 
-
 def ejecutar_ataque(atacante: Fighter, defensor: Fighter, base: int, mult: float, coste: int, etiqueta: str) -> str:
     if coste and not atacante.gastar(coste):
         return f"{atacante.nombre}: Energía insuficiente."
     dano, etiquetas, trazas = calc_daño(atacante, defensor, base, mult)
     defensor.recibir(dano)
+    # Cambia `log_ataque` por `log_ataque_detallado` si quieres el mensaje extendido.
     log = log_ataque(atacante, etiqueta, coste, dano, etiquetas, trazas, defensor)
     return log
 
@@ -420,14 +473,15 @@ def mostrar_encabezado(ronda: int) -> None:
     print(f"{Style.BRIGHT}{Fore.MAGENTA}╔{borde}╗{Style.RESET_ALL}")
     print(f"{Style.BRIGHT}{Fore.MAGENTA}║{titulo}║{Style.RESET_ALL}")
     print(f"{Style.BRIGHT}{Fore.MAGENTA}╚{borde}╝{Style.RESET_ALL}")
-
-
 # ---------------------------------------------------------------------------
 # Bucle principal
 # ---------------------------------------------------------------------------
 
 
 def bucle_principal() -> None:
+    # ➜ Ajusta aquí las estadísticas iniciales de cada combatiente.
+    #    Respeta el orden Fighter(nombre, max_hp, max_en, atk, df, crit, evd)
+    #    y utiliza valores coherentes para evitar desbalances extremos.
     jugador = Fighter("Jugador", 100, 18, 9, 4, 0.15, 0.08)
     enemigo = Fighter("Enemigo", 100, 16, 8, 5, 0.10, 0.06)
 
@@ -456,11 +510,13 @@ def bucle_principal() -> None:
         jugador_recargo = False
 
         if accion == "A":
+            # Daño básico (base=8, multiplicador=1.0) y coste 0 de energía.
             log = ejecutar_ataque(jugador, enemigo, 8, 1.0, 0, "ATAQUE")
             mostrado = resaltar_log(log)
             slow_print(mostrado)
             historial.append(mostrado)
         elif accion == "E":
+            # Ataque especial: ajusta base/multiplicador/coste con cautela.
             log = ejecutar_ataque(jugador, enemigo, 12, 1.25, 8, "ESPECIAL")
             mostrado = resaltar_log(log)
             slow_print(mostrado)
